@@ -16,6 +16,15 @@ ICANON	equ 2
 ECHO	equ 8
 
 section .rodata
+        ; table formatting for leaderboard
+    table_header    db '┌──────┬────────────────┬─────────┐', 10
+                    db '│ RANK │     PLAYER     │  SCORE  │', 10
+                    db '├──────┼────────────────┼─────────┤', 10, 0
+    table_row       db '│ ', 0
+    table_footer    db '└──────┴────────────────┴─────────┘', 10, 0
+    table_separator db ' │ ', 0
+    table_end_row   db ' │', 10, 0
+    space_char      db ' ', 0
  name_prompt db 'Enter your name (max 15 chars): ', 0
     name_buffer_size equ 16  ; 15 chars + null terminator
     leaderboard_file db 'snake_scores.txt', 0
@@ -116,29 +125,28 @@ mainloop:
 
     	jmp mainloop
 
-;get player name
 get_player_name:
     push rax
     push rbx
     push rcx
     push rdx
 
-    ; Display name prompt
+    ; display name prompt
     mov rsi, name_prompt
     call print.buffer
     call print.flush
 
-    ; Temporarily restore canonical mode for name input
+    ;restore canonical mode for name input
     call setcan
 
-    ; Read name
+    ; eead name
     mov rax, 0              ; sys_read
     mov rdi, 0              ; stdin
     mov rsi, name_input
-    mov rdx, ENTRY_NAME_SIZE-1  ; Leave room for null terminator
+    mov rdx, ENTRY_NAME_SIZE-1  ; leave room for null terminator
     syscall
 
-    ; Remove newline if present
+    ; eemove newline if present
     mov rcx, 0
 .find_newline:
     cmp byte [name_input + rcx], 10
@@ -152,16 +160,15 @@ get_player_name:
     mov byte [name_input + rcx], 0
 
 .cleanup:
-    ; Ensure null termination
+    ; null termination
     mov byte [name_input + ENTRY_NAME_SIZE-1], 0
 
-    ; Copy name to current entry
+    ; copy name to current entry
     mov rsi, name_input
     mov rdi, current_entry_name
     mov rcx, ENTRY_NAME_SIZE
     rep movsb
 
-    ; Restore non-canonical mode
     call setnoncan
 
     pop rdx
@@ -170,19 +177,18 @@ get_player_name:
     pop rax
     ret
 
-; Modified update_leaderboard function
 update_leaderboard:
     push rax
     push rbx
     push rcx
     push rdx
 
-    ; Save current score
+    ; save current score
     mov ax, [snakelen]
     sub ax, startlen
     mov [current_entry_score], ax
 
-    ; Open file
+    ; open file
     mov rax, 2              ; sys_open
     mov rdi, leaderboard_file
     mov rsi, 2              ; O_RDWR
@@ -202,14 +208,13 @@ update_leaderboard:
     mov [file_handle], rax
 
 .read_scores:
-    ; Read existing scores
     mov rax, 0              ; sys_read
     mov rdi, [file_handle]
     mov rsi, leaderboard_entries
     mov rdx, LEADERBOARD_SIZE
     syscall
 
-    ; Insert new score and sort
+    ; insert new score and sort
     mov r8, 0               ; Counter
     mov cx, [current_entry_score]
 
@@ -217,24 +222,24 @@ update_leaderboard:
     cmp r8, MAX_ENTRIES
     je .write_back
     
-    ; Calculate current entry offset
+    ; calculate current entry offset
     mov rax, r8
     mov rbx, ENTRY_TOTAL_SIZE
     mul rbx
     mov r10, rax  ; r10 = current offset
     
-    ; Compare scores
+    ; compare scores
     mov dx, word [leaderboard_entries + r10 + ENTRY_NAME_SIZE]
     cmp cx, dx
     jle .next_score
 
-    ; Shift entries down
+    ; shift entries down
     mov r9, 8
 .shift_loop:
     cmp r9, r8
     jl .insert_here
     
-    ; Calculate source and destination offsets
+    ; calculate source and destination offsets
     mov rax, r9
     mov rbx, ENTRY_TOTAL_SIZE
     mul rbx
@@ -245,7 +250,7 @@ update_leaderboard:
     mul rbx
     mov r12, rax  ; r12 = destination offset
     
-    ; Copy entry
+    ; copy entry
     mov rsi, leaderboard_entries
     add rsi, r11
     mov rdi, leaderboard_entries
@@ -257,16 +262,16 @@ update_leaderboard:
     jmp .shift_loop
 
 .insert_here:
-    ; Insert current entry
+    ; insert current entry
     mov rdi, leaderboard_entries
     add rdi, r10
     
-    ; Copy name
+    ; copy name
     mov rsi, current_entry_name
     mov rcx, ENTRY_NAME_SIZE
     rep movsb
     
-    ; Copy score
+    ; copy score
     mov ax, [current_entry_score]
     mov [rdi], ax
     jmp .write_back
@@ -276,21 +281,21 @@ update_leaderboard:
     jmp .insert_loop
 
 .write_back:
-    ; Seek to beginning of file
+    ; seek to beginning of file
     mov rax, 8              ; sys_lseek
     mov rdi, [file_handle]
     xor rsi, rsi
     xor rdx, rdx
     syscall
 
-    ; Write updated leaderboard
+    ; write updated leaderboard
     mov rax, 1              ; sys_write
     mov rdi, [file_handle]
     mov rsi, leaderboard_entries
     mov rdx, LEADERBOARD_SIZE
     syscall
 
-    ; Close file
+    ; close file
     mov rax, 3              ; sys_close
     mov rdi, [file_handle]
     syscall
@@ -301,56 +306,145 @@ update_leaderboard:
     pop rax
     ret
 
-; Modified display_leaderboard function
+
+
 display_leaderboard:
     push rax
     push rbx
     push rcx
     push rdx
 
-    mov rsi, leaderboard_msg
+    mov rsi, table_header
     call print.buffer
 
-    xor r8, r8              ; Counter
+    xor r8, r8              ; counter
 .display_loop:
     cmp r8, MAX_ENTRIES
     je .end_display
 
-    ; Calculate entry offset
+    ; calculate entry offset
     mov rax, r8
     mov rbx, ENTRY_TOTAL_SIZE
     mul rbx
     mov r10, rax           ; r10 = current offset
 
-    ; Display position number
+    ; start row
+    mov rsi, table_row
+    call print.buffer
+
+     ; Display position number (fixed 4 characters)
     mov rax, r8
     inc rax
-    call print.numberbuf
+    cmp rax, 1000
+    jge .print_pos
+    cmp rax, 100
+    jge .pad_one
+    cmp rax, 10
+    jge .pad_two
     
-    mov rsi, leaderboard_entry
+    ; Pad with three spaces for single digits
+    mov rsi, space_char
+    call print.buffer
+    mov rsi, space_char
+    call print.buffer
+    mov rsi, space_char
+    call print.buffer
+    jmp .print_pos
+    
+.pad_two:
+    ; Pad with two spaces for double digits
+    mov rsi, space_char
+    call print.buffer
+    mov rsi, space_char
+    call print.buffer
+    jmp .print_pos
+    
+.pad_one:
+    ; Pad with one space for triple digits
+    mov rsi, space_char
+    call print.buffer
+.print_pos:
+    call print.numberbuf
+
+    ; first separator
+    mov rsi, table_separator
     call print.buffer
 
-    ; Display name
+    ; display name (fixed 12 characters)
+    mov rcx, 14          ; Name display length
     mov rsi, leaderboard_entries
     add rsi, r10
+.print_name:
+    mov al, [rsi]
+    test al, al
+    jz .pad_name
+    mov [buffer], al
+    mov byte [buffer + 1], 0
+    push rsi
+    push rcx
+    mov rsi, buffer
+    call print.buffer
+    pop rcx
+    pop rsi
+    inc rsi
+    dec rcx
+    jnz .print_name
+    jmp .name_done
+
+.pad_name:
+    test rcx, rcx
+    jz .name_done
+.pad_loop:
+    push rcx
+    mov rsi, space_char
+    call print.buffer
+    pop rcx
+    dec rcx
+    jnz .pad_loop
+
+.name_done:
+    ; second separator
+    mov rsi, table_separator
     call print.buffer
 
-    ; Display score separator
-    mov rsi, score_separator
-    call print.buffer
-    
-    ; Display score
+    ; display score 
     xor rax, rax
     mov ax, [leaderboard_entries + r10 + ENTRY_NAME_SIZE]
+    
+    ; convert to string first to get length
+    mov rdi, buffer
+    push rax
+    call number_to_string 
+    mov rcx, 7            ; score column width
+    sub rcx, rax          ; calculate padding needed
+    pop rax
+
+    ; padding with spaces
+.pad_score:
+    test rcx, rcx
+    jle .print_score
+    push rax
+    push rcx
+    mov rsi, space_char
+    call print.buffer
+    pop rcx
+    pop rax
+    dec rcx
+    jmp .pad_score
+
+.print_score:
     call print.numberbuf
 
-    mov rsi, newline
+    ; end row
+    mov rsi, table_end_row
     call print.buffer
 
     inc r8
     jmp .display_loop
 
 .end_display:
+    mov rsi, table_footer
+    call print.buffer
     call print.flush
 
     pop rdx
@@ -358,8 +452,40 @@ display_leaderboard:
     pop rbx
     pop rax
     ret
+
+number_to_string:
+    push rbx
+    push rcx
+    push rdx
+    
+    mov rbx, 10
+    xor rcx, rcx      ; length counter
+    
+.convert_loop:
+    xor rdx, rdx
+    div rbx
+    add dl, '0'
+    push rdx
+    inc rcx
+    test rax, rax
+    jnz .convert_loop
+    
+    mov rax, rcx      ; save length
+    
+.store_loop:
+    pop rdx
+    mov [rdi], dl
+    inc rdi
+    loop .store_loop
+    
+    mov byte [rdi], 0 ; null terminate
+    
+    pop rdx
+    pop rcx
+    pop rbx
+    ret
 exit:
-    call setcan  ; Restore canonical mode first
+    call setcan  
     
     ; Display game over and score
     mov rsi, newline
@@ -374,21 +500,20 @@ exit:
     call print.numberbuf
     mov rsi, newline
     call print.buffer
-    call print.flush  ; Flush before getting name
+    call print.flush  ; flush before getting name
     
-    ; Get player name and update leaderboard
+    ; get player name and update leaderboard
     call get_player_name
-  ; Add these lines
     call update_leaderboard
     mov rsi, newline
     call print.buffer
     call display_leaderboard
 
-    ; Ensure terminal is reset properly
+    ;resetting terminal
     mov rax, 16         ; sys_ioctl
     mov rdi, 1          ; stdout
     mov rsi, 21506      ; TCSETS
-    mov rdx, stty       ; Original terminal settings
+    mov rdx, stty       ; restore terminal settings
     syscall
 
     ; Exit program
@@ -413,7 +538,7 @@ update:
   	call poll		; exit when 'q' is pressed
   	cmp al, 'q'
   	je exit
-				; controll snake:
+				; control snake:
   	mov rax, buffer	; switch case through possible key presses
 
 switch:
@@ -449,7 +574,7 @@ switch:
 .end:
   	mov byte[hasmoved], 1
 endswitch:	    ; control end
-  	mov r8, 0	; pos counter // for counter
+  	mov r8, 0	; position counter // for counter
   	xor r9, r9	; line counter
   	mov r10, field; field pointer
 
@@ -466,7 +591,7 @@ endswitch:	    ; control end
 
   	xor r11, r11
 
-  	mov ax, [snakeposy]	; calc snake pos
+  	mov ax, [snakeposy]	; calc snake position
   	mov r11w, fieldwidth
   	mul r11w
   	mov r11w, [snakeposx]
