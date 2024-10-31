@@ -1,8 +1,7 @@
 # Snake Game in x86 Assembly
-A classic Snake game implementation in x86_64 Assembly for Linux systems, featuring a leaderboard system and terminal-based graphics.
+A  Snake game implementation in x86_64 Assembly for Linux, with a leaderboard system and terminal-based graphics.
 
 ## Overview
-
 This project implements the classic Snake game in pure Assembly language. The game runs in the terminal using ASCII graphics and ANSI escape codes for colors and positioning. It includes features like:
 
 - terminal-based graphics
@@ -21,13 +20,6 @@ This project implements the classic Snake game in pure Assembly language. The ga
 - **Display**: Terminal-based using ANSI escape sequences
 - **File I/O**: Uses system calls for leaderboard persistence
 
-## Prerequisites
-
-- Linux operating system (or WSL)
-- NASM (Netwide Assembler)
-- GCC (for linking)
-- Terminal that supports ANSI escape sequences
-
 ## Building the Game
 
 1. Assemble the code:
@@ -40,17 +32,15 @@ nasm -f elf64 snake.asm -o snake.o
 ld snake.o -o snake
 ```
 
-## Running the Game
 
-Execute the compiled binary:
+3. Execute the compiled binary:
 ```bash
 ./snake
 ```
 
 ## Gameplay Instructions
-
 - Use arrow keys to control the snake's direction
-- Eat apples (O) to grow longer and increase your score
+- Eat apples (O) to grow and increase your score
 - Avoid hitting the walls or the snake's own body
 - Press 'q' to quit the game then enter to exit the leaderboard screen and terminate the program.
 - Enter your name after the game to save your score to the leaderboard
@@ -60,7 +50,6 @@ Execute the compiled binary:
 ### Snake Movement
 - The snake moves continuously in the current direction
 - Direction can be changed using arrow keys
-- Movement speed remains constant throughout the game
 
 ### Scoring System
 - Each apple eaten increases the score by 1
@@ -73,21 +62,6 @@ Execute the compiled binary:
 - Displays player names and scores
 - Automatically updates when new high scores are achieved
 
-## Code Structure
-
-### Key Components
-- `section .rodata`: Contains constant data like display characters and messages
-- `section .data`: Contains mutable game state variables
-- `section .bss`: Contains uninitialized data buffers
-- `section .text`: Contains the game logic and functions
-
-### Main Functions
-- `_start`: Entry point and game initialization
-- `update`: Main game loop and display update
-- `newapplepos`: Generates new random apple positions
-- `get_player_name`: Handles player name input
-- `update_leaderboard`: Manages leaderboard updates
-- `display_leaderboard`: Renders the leaderboard
 
 ### Terminal Handling
 
@@ -106,15 +80,3 @@ The game uses several low-level system features:
 - Non-canonical terminal mode for real-time input
 - Binary file I/O for leaderboard persistence
 
-## Credits
-
-Created by me as an assignment project demonstrating basic x86 Assembly programming concepts.
-
-## License
-
-Feel free to use and modify this code for educational purposes.
-
-
-## Future Improvements
-- Add difficulty levels
-- Add power-ups and obstacles
