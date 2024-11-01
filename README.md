@@ -4,7 +4,7 @@ A  Snake game implementation in x86_64 Assembly for Linux, with a leaderboard sy
 ## Overview
 This project implements the classic Snake game in pure Assembly language. The game runs in the terminal using ASCII graphics and ANSI escape codes for colors and positioning. It includes features like:
 
-- terminal-based graphics
+- Terminal-based graphics
 - Real-time keyboard input handling
 - Score tracking system
 - Leaderboard functionality
